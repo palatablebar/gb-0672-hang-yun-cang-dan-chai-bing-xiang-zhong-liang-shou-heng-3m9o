@@ -63,6 +63,15 @@
     "graph_errors": "关系错误",
     "weight_errors": "重量差异",
     "child": "子单号",
-    "classes": "危险类组合"
+    "classes": "危险类组合",
+    "plan": "采用方案",
+    "plan_label": "方案",
+    "verdict": "裁定",
+    "verdict_label": "裁定结果",
+    "blockers": "阻断项",
+    "supplements": "补证项",
+    "groups": "箱组",
+    "original": "原申报依据",
+    "limits": "箱容上限"
   }
 }

@@ -1,5 +1,6 @@
 import sqlite3, json
 from pathlib import Path
+from app.config import DB_PATH
 from app.errors import BusinessError
 
 def connect(path):

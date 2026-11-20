@@ -30,6 +30,17 @@
 | TRAP-20 | 拆并依赖环 | 静默错算或证据丢失 | 以可复核规则显式处理 | `app/modules/grouping/rules.py` | `tests/test_grouping.py::test_cycle_real` |
 | TRAP-21 | 缺失父级 | 静默错算或证据丢失 | 以可复核规则显式处理 | `app/modules/grouping/rules.py` | `tests/test_grouping.py::test_missing_parent_real` |
 
+## M8 拆并预演裁定（独立工作台 `/rehearsal`）
+
+| 关注点 | 入口 | 核心文件 | 测试 |
+|---|---|---|---|
+| 逐票 hold/split 裁定、箱容与件净毛重同时成立 | `app/rehearsal/rules.py` | `verdict_for/rehearse` | `tests/test_rehearsal_rules.py` |
+| 只读当前舱单、原申报依据保留 | `app/rehearsal/rules.py` | `test_rehearse_is_read_only` | `tests/test_rehearsal_rules.py` |
+| 同指令幂等、修订只重算受影响主单 | `POST /api/rehearsals` | `app/rehearsal/store.py::upsert` | `tests/test_rehearsal_api.py` |
+| 正式应用原子事务、失败回滚不留半套 | `POST /api/rehearsals/{id}/apply` | `app/rehearsal/store.py::apply_rehearsal` | `tests/test_rehearsal_api.py` |
+
+裁定三态：`READY` 可进入正式执行；`SUPPLEMENT` 补证后可执行（拆层变更申报来源、缺 UN 编号）；`BLOCKED` 阻断（图错误、守恒差异、危险品不相容、箱容或毛重超限）。预演以指令指纹去重，按主单证据指纹做局部重算；应用生成 `AP-` 前缀新批次，旧批次与旧版关系不覆盖。
+
 ## 对账规则
 
 原始逻辑输入=采纳行+隔离行+空行+重复表头+同值重复。业务计算按 DATA-DICTIONARY.md 分别核验，不能把上级与下级重复加总。所有隔离保留编号、原值、原始行号和稳定原因码。

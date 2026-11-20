@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="rehearsal-wrap">
+  <section class="panel">
+    <h2>拆并预演裁定<sup>1</sup><small>只读正式舱单 · 原申报依据完整保留 · 修订只重算受影响主单</small></h2>
+    <div class="rehearsal-meta">
+      <span>舱单批次 <b>{{ state.manifest.run_id }}</b></span>
+      <span>规则版本 <b>{{ state.manifest.rule_version }}</b></span>
+      <span>主提单 <b>{{ state.graph.roots|length }}</b> 张</span>
+      <span>默认箱容 <b>30 件 / 400 kg</b></span>
+    </div>
+    {% if rehearsal %}
+    <div class="verdict-cards">
+      <div class="verdict-card ready"><label>可执行</label><b>{{ rehearsal.summary.ready }}</b></div>
+      <div class="verdict-card supplement"><label>补证后执行</label><b>{{ rehearsal.summary.supplement }}</b></div>
+      <div class="verdict-card blocked"><label>阻断</label><b>{{ rehearsal.summary.blocked }}</b></div>
+      <div class="verdict-card rev"><label>预演版本</label><b>v{{ rehearsal.revision }}</b></div>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if rehearsal %}
+  <section class="panel data-panel">
+    <h2>逐张主单裁定<sup>2</sup><small>{{ rehearsal.verdicts|length }} 张主单</small></h2>
+    <div class="table-scroll">
+      <table class="rehearsal-table">
+        <thead><tr>
+          <th>主单号</th><th>采用方案</th><th>容量/重量同时成立</th><th>件·净·毛守恒</th>
+          <th>需要补证</th><th>裁定</th><th>能否进入正式执行</th><th>版本依据</th>
+        </tr></thead>
+        <tbody>
+        {% for v in rehearsal.verdicts %}
+          <tr class="row-{{ v.verdict|lower }}">
+            <td><b>{{ v.master_id }}</b><br><small>原箱 {{ v.original.container }} · {{ v.original.pieces }}件 / {{ v.original.gross_kg }}kg</small></td>
+            <td>{{ v.plan_label }}<br><small>箱容 {{ v.limits.capacity_pieces }} 件 / {{ v.limits.gross_kg }}kg</small></td>
+            <td>
+              {% if v.capacity_and_weight_hold %}<span class="tag ok">同时成立</span>
+              {% else %}<span class="tag no">不成立</span>{% endif %}
+              <div class="group-line">
+                {% for g in v.groups %}
+                  <span class="group {% if g.violations %}group-bad{% endif %}">{{ g.group }}：{{ g.pieces }}件 / {{ g.gross_kg }}kg</span>
+                {% endfor %}
+              </div>
+            </td>
+            <td>
+              {% if v.conservation.ok %}<span class="tag ok">守恒</span>
+              {% else %}<span class="tag no">差异</span>
+                <div class="group-line">
+                  {% for c in v.conservation.rows if c.code!='BALANCED' %}
+                    <span class="group group-bad">{{ c.id }}·{{ c.field }} 差 {{ c.difference }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              {% if v.supplements %}
+                {% for s in v.supplements %}<span class="tag warn">{{ s }}</span>{% endfor %}
+              {% else %}<span class="muted">无需补证</span>{% endif %}
+              {% for f in v.findings if f.severity=='blocker' %}
+                <span class="tag no">{{ f.label }}</span>
+              {% endfor %}
+            </td>
+            <td><span class="stamp verdict-{{ v.verdict|lower }}">{{ v.verdict_label }}</span>
+              {% if v.reused %}<br><small class="muted">沿用上版裁定</small>{% endif %}</td>
+            <td>{% if v.can_apply %}<span class="tag ok">可进入</span>{% else %}<span class="tag no">不可进入</span>{% endif %}</td>
+            <td><small>{{ v.original.revision }} 版<br>{{ v.verdict_fingerprint[:10] }}</small></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>正式执行<sup>3</sup><small>应用生成新版本舱单；失败自动恢复旧版关系，不留半套</small></h2>
+    <div class="apply-strip">
+      <p class="muted">阻断主单未清除前，整票应用将被拒绝。补证类裁定须在下方确认补证项后方可应用。原批次 {{ state.manifest.run_id }} 永不被覆盖。</p>
+      <div id="apply-message" class="apply-message" aria-live="polite"></div>
+      <button id="apply-run" class="apply-btn" data-rehearsal="{{ rehearsal.rehearsal_id }}" data-revision="{{ rehearsal.revision }}">正式应用本预演</button>
+    </div>
+    <h3>补证确认</h3>
+    <div class="ack-list">
+      {% set ns = namespace(any_supp=false) %}
+      {% for v in rehearsal.verdicts %}{% for s in v.supplements %}{% set ns.any_supp = true %}
+        <label class="ack-item"><input type="checkbox" class="ack" value="{{ s }}"> <b>{{ v.master_id }}</b> · {{ s }}</label>
+      {% endfor %}{% endfor %}
+      {% if not ns.any_supp %}<span class="muted">本预演无需补证。</span>{% endif %}
+    </div>
+  </section>
+  {% else %}
+  <section class="panel">
+    <h2>预演说明</h2>
+    <p class="muted">当前批次尚无预演裁定。通过 <code>POST /api/rehearsals</code> 提交拆并箱指令（含每票 hold/split 方案与箱容上限），系统逐张主单裁定并保留原申报依据。同一指令重试不新增第二套裁定。</p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
